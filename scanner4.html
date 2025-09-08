@@ -78,8 +78,15 @@
         body: JSON.stringify({ employeeId: decodedText, status: currentStatus })
       })
       .then(r => r.text())
-      .then(res => console.log("Server:", res))
-      .catch(err => console.error(err));
+      .then(res => {
+        document.getElementById("result").innerHTML = 
+          `✅ ${res}<br>Status: ${currentStatus}`;
+      })
+      .catch(err => {
+        document.getElementById("result").innerHTML = 
+          `❌ Error sending data: ${err}`;
+      });
+
     }
 
     function onScanFailure(error) {
