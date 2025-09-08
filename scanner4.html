@@ -75,17 +75,20 @@
       fetch("https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: decodedText, status: currentStatus })
+        body: JSON.stringify({ employeeId: "JO001", status: "Check In" })
       })
-      .then(r => r.text())
+      .then(r => r.json())
       .then(res => {
-        document.getElementById("result").innerHTML = 
-          `✅ ${res}<br>Status: ${currentStatus}`;
+        if (res.message) {
+          document.getElementById("response").textContent = "✅ " + res.message;
+        } else {
+          document.getElementById("response").textContent = "❌ Error: " + res.error;
+        }
       })
       .catch(err => {
-        document.getElementById("result").innerHTML = 
-          `❌ Error sending data: ${err}`;
+        document.getElementById("response").textContent = "❌ Fetch failed: " + err;
       });
+
 
     }
 
