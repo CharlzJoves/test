@@ -59,45 +59,64 @@
   <!-- html5-qrcode library -->
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
-    let currentStatus = "Check In";
-    const statusElem = document.getElementById("status");
-    const webAppUrl = "https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec"; // <-- Replace with your Apps Script Web App URL
+  let currentStatus = "Check In";
+  const statusElem = document.getElementById("status");
+  const webAppUrl = "https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec"; // Replace with your Apps Script Web App URL
+  let html5QrCode;
+  let lastScanned = null;
+  let cooldown = false;
 
-    function setStatus(newStatus) {
-      currentStatus = newStatus;
-      statusElem.textContent = newStatus;
+  function setStatus(newStatus) {
+    currentStatus = newStatus;
+    statusElem.textContent = newStatus;
+  }
+
+  async function onScanSuccess(decodedText, decodedResult) {
+    if (cooldown || decodedText === lastScanned) return; // prevent duplicates
+    cooldown = true;
+    lastScanned = decodedText;
+
+    document.getElementById("result").innerHTML = 
+      `📌 Scanned ID: ${decodedText} <br>Status: ${currentStatus} <br>⏳ Sending...`;
+
+    // Build GET request with query params
+    const fullUrl = `${webAppUrl}?employeeId=${encodeURIComponent(decodedText)}&status=${encodeURIComponent(currentStatus)}`;
+
+    try {
+      const res = await fetch(fullUrl);
+      const data = await res.json();
+
+      if (data.success) {
+        document.getElementById("result").innerHTML = `✅ ${data.message}`;
+      } else {
+        document.getElementById("result").innerHTML = `❌ Error: ${data.error}`;
+      }
+    } catch (err) {
+      document.getElementById("result").innerHTML = `❌ Fetch failed: ${err}`;
     }
 
-    function onScanSuccess(decodedText, decodedResult) {
-      document.getElementById("result").innerHTML = 
-        `📌 Scanned ID: ${decodedText} <br>Status: ${currentStatus} <br>⏳ Sending...`;
+    // Stop scanning briefly to avoid multiple triggers
+    await html5QrCode.stop();
 
-      // Build GET request with query params
-      const fullUrl = `${webAppUrl}?employeeId=${encodeURIComponent(decodedText)}&status=${encodeURIComponent(currentStatus)}`;
+    // Restart scanner after 3 seconds
+    setTimeout(() => {
+      cooldown = false;
+      html5QrCode.start(
+        { facingMode: "environment" }, // use back camera if available
+        { fps: 10, qrbox: 250 },
+        onScanSuccess,
+        onScanFailure
+      );
+    }, 3000);
+  }
 
-      fetch(fullUrl)
-        .then(r => r.json())
-        .then(res => {
-          if (res.success) {
-            document.getElementById("result").innerHTML =
-              `✅ ${res.message}`;
-          } else {
-            document.getElementById("result").innerHTML =
-              `❌ Error: ${res.error}`;
-          }
-        })
-        .catch(err => {
-          document.getElementById("result").innerHTML =
-            `❌ Fetch failed: ${err}`;
-        });
-    }
+  function onScanFailure(error) {
+    // Ignored — runs when no QR is in view
+  }
 
-    function onScanFailure(error) {
-      // Ignored — runs when no QR is in view
-    }
-
-    // Start scanner
-    let html5QrCode = new Html5Qrcode("reader");
+  // Start scanner on page load
+  window.onload = () => {
+    html5QrCode = new Html5Qrcode("reader");
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length) {
         let cameraId = devices[0].id;
@@ -111,6 +130,8 @@
     }).catch(err => {
       alert("Camera not accessible: " + err);
     });
-  </script>
+  };
+</script>
+
 </body>
 </html>
