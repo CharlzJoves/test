@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Attendance Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+    }
+    .buttons {
+      margin-top: 15px;
+    }
+    button {
+      margin: 5px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #result {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>📷 QR Attendance Scanner</h2>
+  
+  <div id="reader"></div>
+
+  <div class="buttons">
+    <button onclick="setStatus('Check In')">Check In</button>
+    <button onclick="setStatus('Check Out')">Check Out</button>
+    <button onclick="setStatus('Overtime In')">Overtime In</button>
+    <button onclick="setStatus('Overtime Out')">Overtime Out</button>
+  </div>
+
+  <div id="result">Status: <span id="status">Check In</span></div>
+
+  <!-- html5-qrcode library -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script>
+    let currentStatus = "Check In";
+    const statusElem = document.getElementById("status");
+
+    function setStatus(newStatus) {
+      currentStatus = newStatus;
+      statusElem.textContent = newStatus;
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+      document.getElementById("result").innerHTML = 
+        `Scanned: ${decodedText} <br>Status: ${currentStatus}`;
+
+      // Send to Google Apps Script backend
+      fetch("YOUR_APPS_SCRIPT_WEBAPP_URL", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: decodedText, status: currentStatus })
+      })
+      .then(r => r.text())
+      .then(res => console.log("Server:", res))
+      .catch(err => console.error(err));
+    }
+
+    function onScanFailure(error) {
+      // Ignored — runs when no QR is in view
+    }
+
+    // Start scanner
+    let html5QrCode = new Html5Qrcode("reader");
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        let cameraId = devices[0].id;
+        html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanFailure
+        );
+      }
+    }).catch(err => {
+      alert("Camera not accessible: " + err);
+    });
+  </script>
+</body>
+</html>
