@@ -43,93 +43,75 @@
   </style>
 </head>
 <body>
-  <h2>📷 QR Attendance Scanner</h2>
-  
-  <div id="reader"></div>
+  <h2>QR Attendance</h2>
 
-  <div class="buttons">
-    <button onclick="setStatus('Check In')">Check In</button>
-    <button onclick="setStatus('Check Out')">Check Out</button>
-    <button onclick="setStatus('Overtime In')">Overtime In</button>
-    <button onclick="setStatus('Overtime Out')">Overtime Out</button>
-  </div>
+  <!-- Status buttons -->
+  <button onclick="setStatus('Check In')">Check In</button>
+  <button onclick="setStatus('Check Out')">Check Out</button>
 
-  <div id="result">Status: <span id="status">Check In</span></div>
+  <!-- Show current status -->
+  <p>📌 Current Status: <span id="status">Check In</span></p>
 
-  <!-- html5-qrcode library -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- QR scanner -->
+  <div id="reader" style="width:300px;height:300px;"></div>
+
+  <!-- Scan result -->
+  <div id="result"></div>
+
   <script>
-  let currentStatus = "Check In";
-  const statusElem = document.getElementById("status");
-  const webAppUrl = "https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec"; // Replace with your Apps Script Web App URL
-  let html5QrCode;
-  let lastScanned = null;
-  let cooldown = false;
+    let currentStatus = "Check In";
+    const statusElem = document.getElementById("status");
+    const webAppUrl = "YOUR_WEB_APP_URL"; // Replace with your Apps Script Web App URL
+    let html5QrCode;
+    let lastScanned = null;
+    let cooldown = false;
 
-  function setStatus(newStatus) {
-    currentStatus = newStatus;
-    statusElem.textContent = newStatus;
-
-    // Clear message log when switching status
-    document.getElementById("result").innerHTML = "";
-  }
-
-  async function onScanSuccess(decodedText) {
-    if (cooldown || decodedText === lastScanned) return;
-    cooldown = true;
-    lastScanned = decodedText;
-
-    document.getElementById("result").innerHTML = 
-      `📌 Scanned ID: ${decodedText} <br>Status: ${currentStatus} <br>⏳ Sending...`;
-
-    const fullUrl = `${webAppUrl}?employeeId=${encodeURIComponent(decodedText)}&status=${encodeURIComponent(currentStatus)}`;
-
-    try {
-      const res = await fetch(fullUrl);
-      const data = await res.json();
-
-      if (data.success) {
-        document.getElementById("result").innerHTML = `✅ ${data.message}`;
-      } else {
-        document.getElementById("result").innerHTML = `❌ Error: ${data.error}`;
-      }
-    } catch (err) {
-      document.getElementById("result").innerHTML = `❌ Fetch failed: ${err}`;
+    function setStatus(newStatus) {
+      currentStatus = newStatus;
+      statusElem.textContent = newStatus; // ✅ updates the <span id="status">
     }
 
-    await html5QrCode.stop();
+    async function onScanSuccess(decodedText) {
+      if (cooldown || decodedText === lastScanned) return;
+      cooldown = true;
+      lastScanned = decodedText;
 
-    setTimeout(() => {
-      cooldown = false;
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        onScanSuccess,
-        onScanFailure
-      );
-    }, 3000);
-  }
+      document.getElementById("result").innerHTML =
+        `📌 Scanned ID: ${decodedText} <br>Status: ${currentStatus} <br>⏳ Sending...`;
 
-  function onScanFailure(error) {}
+      const fullUrl = `${webAppUrl}?employeeId=${encodeURIComponent(decodedText)}&status=${encodeURIComponent(currentStatus)}`;
 
-  window.onload = () => {
-    html5QrCode = new Html5Qrcode("reader");
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        let cameraId = devices[0].id;
-        html5QrCode.start(
-          cameraId,
-          { fps: 10, qrbox: 250 },
-          onScanSuccess,
-          onScanFailure
-        );
+      try {
+        const res = await fetch(fullUrl);
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById("result").innerHTML = `✅ ${data.message}`;
+        } else {
+          document.getElementById("result").innerHTML = `❌ Error: ${data.error}`;
+        }
+      } catch (err) {
+        document.getElementById("result").innerHTML = `❌ Fetch failed: ${err}`;
       }
-    }).catch(err => {
-      alert("Camera not accessible: " + err);
-    });
-  };
-</script>
 
+      await html5QrCode.stop();
+      setTimeout(() => {
+        cooldown = false;
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
+      }, 3000);
+    }
 
+    function onScanFailure(error) { /* ignored */ }
+
+    window.onload = () => {
+      html5QrCode = new Html5Qrcode("reader");
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices.length) {
+          html5QrCode.start(devices[0].id, { fps: 10, qrbox: 250 }, onScanSuccess, onScanFailure);
+        }
+      });
+    };
+  </script>
 </body>
+
 </html>
