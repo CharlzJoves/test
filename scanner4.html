@@ -55,42 +55,64 @@
   <!-- QR scanner -->
   <div id="reader" style="width:300px;height:300px;"></div>
 
-  <div id="result">
-    Status: <span id="status">Check In</span>
-  </div>
-  
-  <!-- new container for scan messages -->
-  <div id="scanResult"></div>
-
+  <!-- Scan result -->
+  <div id="result"></div>
 
   <script>
     let currentStatus = "Check In";
     const statusElem = document.getElementById("status");
-    
+    const webAppUrl = "https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec"; // Replace with your Apps Script Web App URL
+    let html5QrCode;
+    let lastScanned = null;
+    let cooldown = false;
+
     function setStatus(newStatus) {
       currentStatus = newStatus;
-      statusElem.textContent = newStatus; // ✅ updates correctly now
-    }
-    
-    function onScanSuccess(decodedText) {
-      document.getElementById("scanResult").innerHTML =
-        `Scanned: ${decodedText} <br>Status: ${currentStatus}`;
-    
-      fetch("https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: decodedText, status: currentStatus })
-      })
-      .then(r => r.json())
-      .then(res => {
-        document.getElementById("scanResult").innerHTML += `<br>✅ ${res.message}`;
-      })
-      .catch(err => {
-        document.getElementById("scanResult").innerHTML += `<br>❌ Fetch failed: ${err}`;
-      });
+      statusElem.textContent = newStatus; // ✅ updates the <span id="status">
     }
 
+    async function onScanSuccess(decodedText) {
+      if (cooldown || decodedText === lastScanned) return;
+      cooldown = true;
+      lastScanned = decodedText;
+
+      document.getElementById("result").innerHTML =
+        `📌 Scanned ID: ${decodedText} <br>Status: ${currentStatus} <br>⏳ Sending...`;
+
+      const fullUrl = `${webAppUrl}?employeeId=${encodeURIComponent(decodedText)}&status=${encodeURIComponent(currentStatus)}`;
+
+      try {
+        const res = await fetch(fullUrl);
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById("result").innerHTML = `✅ ${data.message}`;
+        } else {
+          document.getElementById("result").innerHTML = `❌ Error: ${data.error}`;
+        }
+      } catch (err) {
+        document.getElementById("result").innerHTML = `❌ Fetch failed: ${err}`;
+      }
+
+      await html5QrCode.stop();
+      setTimeout(() => {
+        cooldown = false;
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
+      }, 3000);
+    }
+
+    function onScanFailure(error) { /* ignored */ }
+
+    window.onload = () => {
+      html5QrCode = new Html5Qrcode("reader");
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices.length) {
+          html5QrCode.start(devices[0].id, { fps: 10, qrbox: 250 }, onScanSuccess, onScanFailure);
+        }
+      });
+    };
   </script>
 </body>
+
 
 </html>
