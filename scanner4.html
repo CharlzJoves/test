@@ -61,6 +61,7 @@
   <script>
     let currentStatus = "Check In";
     const statusElem = document.getElementById("status");
+    const webAppUrl = "https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec"; // <-- Replace with your Apps Script Web App URL
 
     function setStatus(newStatus) {
       currentStatus = newStatus;
@@ -69,27 +70,26 @@
 
     function onScanSuccess(decodedText, decodedResult) {
       document.getElementById("result").innerHTML = 
-        `Scanned: ${decodedText} <br>Status: ${currentStatus}`;
+        `📌 Scanned ID: ${decodedText} <br>Status: ${currentStatus} <br>⏳ Sending...`;
 
-      // Send to Google Apps Script backend
-      fetch("https://script.google.com/macros/s/AKfycbw5cFD0hFiBfNO_RgSWVLrWPGfsCBsTNPPElPDAOH6tk951fW9fuPJnUcsROkmrkvQmhA/exec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: "JO001", status: "Check In" })
-      })
-      .then(r => r.json())
-      .then(res => {
-        if (res.message) {
-          document.getElementById("response").textContent = "✅ " + res.message;
-        } else {
-          document.getElementById("response").textContent = "❌ Error: " + res.error;
-        }
-      })
-      .catch(err => {
-        document.getElementById("response").textContent = "❌ Fetch failed: " + err;
-      });
+      // Build GET request with query params
+      const fullUrl = `${webAppUrl}?employeeId=${encodeURIComponent(decodedText)}&status=${encodeURIComponent(currentStatus)}`;
 
-
+      fetch(fullUrl)
+        .then(r => r.json())
+        .then(res => {
+          if (res.success) {
+            document.getElementById("result").innerHTML =
+              `✅ ${res.message}`;
+          } else {
+            document.getElementById("result").innerHTML =
+              `❌ Error: ${res.error}`;
+          }
+        })
+        .catch(err => {
+          document.getElementById("result").innerHTML =
+            `❌ Fetch failed: ${err}`;
+        });
     }
 
     function onScanFailure(error) {
