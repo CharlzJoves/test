@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Attendance Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    video {
+      width: 100%;
+      max-width: 400px;
+      border: 2px solid #333;
+      border-radius: 10px;
+      margin: 10px auto;
+    }
+    .buttons {
+      margin-top: 15px;
+    }
+    button {
+      margin: 5px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #result {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>📷 QR Attendance Scanner</h2>
+  <video id="preview"></video>
+  
+  <div class="buttons">
+    <button onclick="setStatus('Check In')">Check In</button>
+    <button onclick="setStatus('Check Out')">Check Out</button>
+    <button onclick="setStatus('Overtime In')">Overtime In</button>
+    <button onclick="setStatus('Overtime Out')">Overtime Out</button>
+  </div>
+
+  <div id="result">Status: <span id="status">Check In</span></div>
+
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script>
+    const codeReader = new ZXing.BrowserQRCodeReader();
+    const videoElem = document.getElementById('preview');
+    const statusElem = document.getElementById('status');
+    let currentStatus = 'Check In';
+
+    function setStatus(newStatus) {
+      currentStatus = newStatus;
+      statusElem.textContent = newStatus;
+    }
+
+    async function startScanner() {
+      try {
+        const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        const firstDeviceId = devices[0].deviceId;
+
+        codeReader.decodeFromVideoDevice(firstDeviceId, videoElem, (result, err) => {
+          if (result) {
+            const empId = result.text;
+            document.getElementById('result').innerHTML = `Scanned: ${empId} <br>Status: ${currentStatus}`;
+
+            // Send to Google Apps Script backend
+            fetch("YOUR_APPS_SCRIPT_WEBAPP_URL", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ employeeId: empId, status: currentStatus })
+            })
+            .then(r => r.text())
+            .then(res => console.log("Server:", res))
+            .catch(err => console.error(err));
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        alert("Camera not accessible: " + err);
+      }
+    }
+
+    startScanner();
+  </script>
+</body>
+</html>
